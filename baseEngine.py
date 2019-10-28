@@ -36,10 +36,31 @@ def draw_arrows(flying_arrows):
 
 def set_position(body, xDelta, yDelta):
     #Update position of body
-    currentPos = body._get_position() 
-    currentPos[0] += xDelta
-    currentPos[1] += yDelta
-    body._set_position(currentPos)
+    body.position += Vec2d(xDelta,yDelta) * 2.5
+
+def base_agent_launch_arrow(space,flying_arrows,agent,arrow_body, power, direction):
+    agent_body,agent_shape = agent
+    #TO:DO Add timing
+    impulse = power * Vec2d(1,0)
+    impulse.rotate(arrow_body.angle)
+                
+    arrow_body.apply_impulse_at_world_point(impulse, arrow_body.position)
+                
+    space.add(arrow_body)
+    flying_arrows.append(arrow_body)
+                
+    arrow_body, arrow_shape = create_arrow()
+    space.add(arrow_shape)
+
+    xShoot = random.randrange(-1000,1000)
+    yShoot = random.randrange(-1000,1000)
+
+    mouse_position = (xShoot,yShoot)
+    agent_body.angle = (mouse_position - agent_body.position).angle
+
+    # move the unfired arrow together with the cannon
+    arrow_body.position = agent_body.position + Vec2d(agent_shape.radius + 40, 0).rotated(agent_body.angle)
+    arrow_body.angle = agent_body.angle
 
 
 def create_arrow():
@@ -114,6 +135,21 @@ def initialize_game():
 
     return (screen,clock,running,space,static,b2,cannon_body,cannon_shape,draw_options,font)
 
+def update_frame(screen,space,clock,pygame,font,draw_options):
+    # Info and flip screen
+    screen.blit(font.render("fps: " + str(clock.get_fps()), 1, THECOLORS["white"]), (0,0))
+    screen.blit(font.render("Aim with mouse, hold LMB to powerup, release to fire", 1, THECOLORS["darkgrey"]), (5,height - 35))
+    screen.blit(font.render("Press ESC or Q to quit", 1, THECOLORS["darkgrey"]), (5,height - 20))
+        
+    pygame.display.flip()
+        
+    ### Update physics
+    fps = 60
+    dt = 1./fps
+    space.step(dt)
+        
+    clock.tick(fps)
+
 def run_baseline_game():
     screen,clock,running,space,static,b2,agent_body,agent_shape,draw_options,font =  initialize_game()
 
@@ -126,29 +162,17 @@ def run_baseline_game():
     space.add(arrow_shape)
 
     iterations = 0
-    while running and iterations != 10:
-        iterations += 1
-        power = random.randrange(0,15)
-        impulse = power * Vec2d(1,0)
-        impulse.rotate(arrow_body.angle)
-                
-        arrow_body.apply_impulse_at_world_point(impulse, arrow_body.position)
-        space.add(arrow_body)
-        flying_arrows.append(arrow_body)
+    start_time = pygame.time.get_ticks()
+    while running and iterations < 1000:
+        end_time = pygame.time.get_ticks()        
+        diff = end_time - start_time
 
-        arrow_body, arrow_shape = create_arrow()
-        space.add(arrow_shape)
-        
+        if(diff > 3000):
+            iterations += 1
+            base_agent_launch_arrow(space,flying_arrows,(agent_body,agent_shape),arrow_body,1500,(100,100))
+      
         speed = 2.5
 
-        agent_body.position += Vec2d(0,1) * speed
-            
-        mouse_position = pymunk.pygame_util.from_pygame( Vec2d(pygame.mouse.get_pos()), screen )
-        agent_body.angle = (mouse_position - agent_body.position).angle
-        # move the unfired arrow together with the cannon
-        arrow_body.position = agent_body.position + Vec2d(agent_shape.radius + 40, 0).rotated(agent_body.angle)
-        arrow_body.angle = agent_body.angle
-        
         draw_arrows(flying_arrows)
             
         ### Clear screen
@@ -158,21 +182,7 @@ def run_baseline_game():
         space.debug_draw(draw_options)
         #draw(screen, space)
             
-        # Info and flip screen
-        screen.blit(font.render("fps: " + str(clock.get_fps()), 1, THECOLORS["white"]), (0,0))
-        screen.blit(font.render("Aim with mouse, hold LMB to powerup, release to fire", 1, THECOLORS["darkgrey"]), (5,height - 35))
-        screen.blit(font.render("Press ESC or Q to quit", 1, THECOLORS["darkgrey"]), (5,height - 20))
-        
-        pygame.display.flip()
-        
-        #Remove this iteration of arrows
-        #flying_arrows.remove(arrow_body)
-        ### Update physics
-        fps = 60
-        dt = 1./fps
-        space.step(dt)
-        time.sleep(2)
-        clock.tick(fps)
+        update_frame(screen,space,clock,pygame,font,draw_options)
 
 
 def runManualGame():
@@ -201,6 +211,7 @@ def runManualGame():
                 end_time = pygame.time.get_ticks()
                 
                 diff = end_time - start_time
+
                 power = max(min(diff, 1000), 10) * 1.5
                 impulse = power * Vec2d(1,0)
                 impulse.rotate(arrow_body.angle)
@@ -216,6 +227,7 @@ def runManualGame():
         keys = pygame.key.get_pressed()
         
         speed = 2.5
+        #This is for movement, U,D,L,R arrows
         if (keys[K_UP]):
             cannon_body.position += Vec2d(0,1) * speed
         if (keys[K_DOWN]):
@@ -230,16 +242,12 @@ def runManualGame():
         # move the unfired arrow together with the cannon
         arrow_body.position = cannon_body.position + Vec2d(cannon_shape.radius + 40, 0).rotated(cannon_body.angle)
         arrow_body.angle = cannon_body.angle
-        
-        draw_arrows(flying_arrows)
-            
         ### Clear screen
         screen.fill(pygame.color.THECOLORS["black"])
         
         ### Draw stuff
         space.debug_draw(draw_options)
-        #draw(screen, space)
-        
+
         # Power meter
         if pygame.mouse.get_pressed()[0]:
             current_time = pygame.time.get_ticks()
@@ -247,24 +255,7 @@ def runManualGame():
             power = max(min(diff, 1000), 10)
             h = power / 2
             pygame.draw.line(screen, pygame.color.THECOLORS["red"], (30,550), (30,550-h), 10)
+
+        update_frame(screen,space,clock,pygame,font,draw_options)
+        
                 
-        # Info and flip screen
-        screen.blit(font.render("fps: " + str(clock.get_fps()), 1, THECOLORS["white"]), (0,0))
-        screen.blit(font.render("Aim with mouse, hold LMB to powerup, release to fire", 1, THECOLORS["darkgrey"]), (5,height - 35))
-        screen.blit(font.render("Press ESC or Q to quit", 1, THECOLORS["darkgrey"]), (5,height - 20))
-        
-        pygame.display.flip()
-        
-        ### Update physics
-        fps = 60
-        dt = 1./fps
-        space.step(dt)
-        
-        clock.tick(fps)
-
-def main():
-    #run_baseline_game()
-    runManualGame()
-
-if __name__ == '__main__':
-    sys.exit(main())
