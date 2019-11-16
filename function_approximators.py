@@ -24,17 +24,17 @@ class LinearFunctionApproximator:
         target = reward + self.discount * V_opt_hat
         self.weights -= self.rate * (prediction - target) * np.concatenate((old_state, action))
 
-class NeuralFunctionApproximator():
+# class NeuralFunctionApproximator():
     
-    def __init__(self, state_space_size, action_space_size, actions, discount=1, rate=0.1):
-        super(NeuralFunctionApproximator, self).__init__()
-        self.fc1 = nn.Linear(state_space_size + action_space_size, 6)
-        self.fc2 = nn.Linear(6, action_space_size)
+#     def __init__(self, state_space_size, action_space_size, actions, discount=1, rate=0.1):
+#         super(NeuralFunctionApproximator, self).__init__()
+#         self.fc1 = nn.Linear(state_space_size + action_space_size, 6)
+#         self.fc2 = nn.Linear(6, action_space_size)
     
-    def forward(self, x):
-        x = F.relu(self.fc1(x))
-        x = F.relu(self.fc2(x))
-        return x
+#     def forward(self, x):
+#         x = F.relu(self.fc1(x))
+#         x = F.relu(self.fc2(x))
+#         return x
     
 
 
