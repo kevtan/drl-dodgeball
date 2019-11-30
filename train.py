@@ -12,9 +12,9 @@ import utils
 from networks import *
 
 # training configuration
-ENVIRONMENT = "environments/Basic.app"
-EPOCHS = 100
-EPISODES = 10
+ENVIRONMENT = "environments/Lesson1.app"
+EPOCHS = 5
+EPISODES = 5
 DISCOUNT = 0.98
 EXPLORATION = 0.3
 RANDOM_STATES = 100
@@ -26,7 +26,7 @@ env.reset()
 # extract environment information
 BRAIN_NAME = env.external_brain_names[0]
 brain_parameters = env.external_brains[BRAIN_NAME]
-STATE_SPACE_SIZE = brain_parameters.vector_observation_space_size
+STATE_SPACE_SIZE = brain_parameters.vector_observation_space_size * brain_parameters.num_stacked_vector_observations
 ACTION_SPACE_SIZE = brain_parameters.vector_action_space_size[0]
 
 # sample some random states for tracking training progress
@@ -40,7 +40,7 @@ for _ in range(RANDOM_STATES):
 
 # setup network and optimizer
 qnet = Network1(STATE_SPACE_SIZE, ACTION_SPACE_SIZE)
-optimizer = torch.optim.SGD(qnet.parameters(), 0.05)
+optimizer = torch.optim.SGD(qnet.parameters(), 0.05, 0.9)
 identifier = hashlib.md5(f"{ENVIRONMENT}{DISCOUNT}{str(qnet)}{str(optimizer)}".encode("utf-8")).hexdigest()
 path = f"models/{identifier}.pt"
 if os.path.exists(path):
