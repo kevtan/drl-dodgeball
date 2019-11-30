@@ -1,6 +1,7 @@
 import hashlib
 import random
 import statistics
+import os
 
 import torch
 import tqdm
@@ -12,10 +13,10 @@ from networks import *
 
 # training configuration
 ENVIRONMENT = "environments/Basic.app"
-EPOCHS = 1
+EPOCHS = 100
 EPISODES = 10
-DISCOUNT = 0.75
-EXPLORATION = 0.2
+DISCOUNT = 0.98
+EXPLORATION = 0.3
 RANDOM_STATES = 100
 
 # initialize environment simulation
@@ -39,8 +40,11 @@ for _ in range(RANDOM_STATES):
 
 # setup network and optimizer
 qnet = Network1(STATE_SPACE_SIZE, ACTION_SPACE_SIZE)
-breakpoint()
 optimizer = torch.optim.SGD(qnet.parameters(), 0.05)
+identifier = hashlib.md5(f"{ENVIRONMENT}{DISCOUNT}{str(qnet)}{str(optimizer)}".encode("utf-8")).hexdigest()
+path = f"models/{identifier}.pt"
+if os.path.exists(path):
+    qnet.load_state_dict(torch.load(path))
 
 # training progress logger
 writer = SummaryWriter()
@@ -81,6 +85,4 @@ for epoch in tqdm.tqdm(range(EPOCHS), "Epochs"):
 env.close()
 
 # save network parameters
-identifier = f"{ENVIRONMENT}{DISCOUNT}{str(qnet)}{str(optimizer)}"
-hashcode = hashlib.md5(identifier)
-torch.save(qnet.state_dict(), f"models/{hashcode}")
+torch.save(qnet.state_dict(), path)
