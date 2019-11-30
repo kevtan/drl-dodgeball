@@ -12,12 +12,13 @@ import utils
 from networks import *
 
 # training configuration
-ENVIRONMENT = "environments/Lesson1.app"
-EPOCHS = 5
-EPISODES = 5
+ENVIRONMENT = "environments/Lesson1-State.app"
+EPOCHS = 1000
+EPISODES = 10
 DISCOUNT = 0.98
 EXPLORATION = 0.3
 RANDOM_STATES = 100
+CHECKPOINT_EPOCHS = 5
 
 # initialize environment simulation
 env = UnityEnvironment(ENVIRONMENT)
@@ -39,7 +40,7 @@ for _ in range(RANDOM_STATES):
     random_states.append(state)
 
 # setup network and optimizer
-qnet = Network1(STATE_SPACE_SIZE, ACTION_SPACE_SIZE)
+qnet = Network3(STATE_SPACE_SIZE, ACTION_SPACE_SIZE)
 optimizer = torch.optim.SGD(qnet.parameters(), 0.05, 0.9)
 identifier = hashlib.md5(f"{ENVIRONMENT}{DISCOUNT}{str(qnet)}{str(optimizer)}".encode("utf-8")).hexdigest()
 path = f"models/{identifier}.pt"
@@ -82,6 +83,9 @@ for epoch in tqdm.tqdm(range(EPOCHS), "Epochs"):
     writer.add_scalar("Average_Reward_per_Episode", statistics.mean(episode_rewards), epoch)
     writer.add_scalar("Average_Length_per_Episode", statistics.mean(episode_lengths), epoch)
     writer.add_scalar("Average_State_Value", utils.average_state_value(qnet, random_states), epoch)
+    # save network parameters at checkpoints
+    if epoch % CHECKPOINT_EPOCHS == 0:
+        torch.save(qnet.state_dict(), path)
 env.close()
 
 # save network parameters
