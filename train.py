@@ -1,7 +1,7 @@
 import hashlib
+import os
 import random
 import statistics
-import os
 
 import torch
 import tqdm
@@ -9,16 +9,19 @@ from mlagents.envs.environment import UnityEnvironment
 from torch.utils.tensorboard import SummaryWriter
 
 import utils
+from experience_replay import ExperienceReplayMemory
 from networks import *
 
 # training configuration
-ENVIRONMENT = "environments/Lesson1SmallRaycast.app"
+ENVIRONMENT = "environments/Basic.app"
 EPOCHS = 200
 EPISODES = 5
 DISCOUNT = 0.9
 EXPLORATION = 0.2
 RANDOM_STATES = 100
 CHECKPOINT_EPOCHS = 5
+REPLAY_MEMORY = 100000
+MINIBATCH = 32
 
 # initialize environment simulation
 env = UnityEnvironment(ENVIRONMENT)
@@ -47,6 +50,9 @@ path = f"models/{identifier}.pt"
 if os.path.exists(path):
     qnet.load_state_dict(torch.load(path))
 
+# initialize agent's experience replay memory
+erm = ExperienceReplayMemory(REPLAY_MEMORY)
+
 # training progress logger
 writer = SummaryWriter()
 
@@ -63,12 +69,13 @@ for epoch in tqdm.tqdm(range(EPOCHS), "Epochs"):
             action = random.choice(range(ACTION_SPACE_SIZE)) if random.random() < EXPLORATION else torch.argmax(predicted_qs).item()
             # execute chosen action
             new_braininfo = env.step(action)[BRAIN_NAME]
-            # update policy network parameters
+            # add experience to memory
             new_observation = torch.from_numpy(new_braininfo.vector_observations[0]).float()
             reward = new_braininfo.rewards[0]
-            target = reward + DISCOUNT * max(qnet(new_observation))
-            # TODO: use a PyTorch loss function
-            loss = (target - predicted_qs[action]) ** 2
+            erm.add((observation, action, reward, new_observation))
+            # sample minibatch of memories for parameter update
+            minibatch = erm.sample(MINIBATCH)
+            loss = utils.minibatch_loss(minibatch, qnet, DISCOUNT)
             loss.backward()
             optimizer.step()
             optimizer.zero_grad()
