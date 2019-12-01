@@ -20,8 +20,9 @@ DISCOUNT = 0.9
 EXPLORATION = 0.2
 RANDOM_STATES = 100
 CHECKPOINT_EPOCHS = 5
-REPLAY_MEMORY = 100000
-MINIBATCH = 32
+REPLAY_MEMORY = 100
+MINIBATCH = 10
+COLLECT_DATA = True
 
 # initialize environment simulation
 env = UnityEnvironment(ENVIRONMENT)
@@ -54,7 +55,7 @@ if os.path.exists(path):
 erm = ExperienceReplayMemory(REPLAY_MEMORY)
 
 # training progress logger
-writer = SummaryWriter()
+writer = SummaryWriter() if COLLECT_DATA else None
 
 # training loop
 for epoch in tqdm.tqdm(range(EPOCHS), "Epochs"):
@@ -87,9 +88,10 @@ for epoch in tqdm.tqdm(range(EPOCHS), "Epochs"):
         episode_rewards.append(episode_reward)
         episode_lengths.append(episode_length)
     # log training metrics after epoch finishes
-    writer.add_scalar("Average_Reward_per_Episode", statistics.mean(episode_rewards), epoch)
-    writer.add_scalar("Average_Length_per_Episode", statistics.mean(episode_lengths), epoch)
-    writer.add_scalar("Average_State_Value", utils.average_state_value(qnet, random_states), epoch)
+    if COLLECT_DATA:
+        writer.add_scalar("Average_Reward_per_Episode", statistics.mean(episode_rewards), epoch)
+        writer.add_scalar("Average_Length_per_Episode", statistics.mean(episode_lengths), epoch)
+        writer.add_scalar("Average_State_Value", utils.average_state_value(qnet, random_states), epoch)
     # save network parameters at checkpoints
     if epoch % CHECKPOINT_EPOCHS == 0:
         torch.save(qnet.state_dict(), path)

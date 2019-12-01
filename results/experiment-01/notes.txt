@@ -1,0 +1,15 @@
+Run ID: Dec01_14-17-51_DN0a1fe67e.SUNet
+Smoothing: 0.6
+
+Training Parameters:
+--------------------
+ENVIRONMENT = "environments/Basic.app"
+EPOCHS = 200
+EPISODES = 5
+DISCOUNT = 0.9
+EXPLORATION = 0.2
+RANDOM_STATES = 100
+CHECKPOINT_EPOCHS = 5
+REPLAY_MEMORY = 100
+MINIBATCH = 10
+COLLECT_DATA = True
