@@ -12,11 +12,11 @@ import utils
 from networks import *
 
 # training configuration
-ENVIRONMENT = "environments/Lesson1-State.app"
-EPOCHS = 1000
-EPISODES = 10
-DISCOUNT = 0.98
-EXPLORATION = 0.3
+ENVIRONMENT = "environments/Lesson1SmallRaycast.app"
+EPOCHS = 200
+EPISODES = 5
+DISCOUNT = 0.9
+EXPLORATION = 0.2
 RANDOM_STATES = 100
 CHECKPOINT_EPOCHS = 5
 
