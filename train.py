@@ -13,11 +13,11 @@ from experience_replay import ExperienceReplayMemory
 from networks import *
 
 # training configuration
-ENVIRONMENT = "environments/Basic.app"
-EPOCHS = 200
+ENVIRONMENT = "environments/Lesson1Small-Internal.app"
+EPOCHS = 100
 EPISODES = 5
 DISCOUNT = 0.9
-EXPLORATION = 0.2
+EXPLORATION = 0.4
 RANDOM_STATES = 100
 CHECKPOINT_EPOCHS = 5
 REPLAY_MEMORY = 100
@@ -45,11 +45,11 @@ for _ in range(RANDOM_STATES):
 
 # setup network and optimizer
 qnet = Network3(STATE_SPACE_SIZE, ACTION_SPACE_SIZE)
-optimizer = torch.optim.SGD(qnet.parameters(), 0.05, 0.9)
+optimizer = torch.optim.SGD(qnet.parameters(), 0.005, 0.9)
 identifier = hashlib.md5(f"{ENVIRONMENT}{DISCOUNT}{str(qnet)}{str(optimizer)}".encode("utf-8")).hexdigest()
 path = f"models/{identifier}.pt"
 if os.path.exists(path):
-    qnet.load_state_dict(torch.load(path))
+   qnet.load_state_dict(torch.load(path))
 
 # initialize agent's experience replay memory
 erm = ExperienceReplayMemory(REPLAY_MEMORY)
