@@ -13,7 +13,7 @@ from experience_replay import ExperienceReplayMemory
 from networks import *
 
 # training configuration
-ENVIRONMENT = "environments/Lesson1Small-Internal.app"
+ENVIRONMENT = None
 EPOCHS = 100
 EPISODES = 5
 DISCOUNT = 0.9
@@ -23,6 +23,7 @@ CHECKPOINT_EPOCHS = 5
 REPLAY_MEMORY = 100
 MINIBATCH = 10
 COLLECT_DATA = True
+TRAIN = True
 
 # initialize environment simulation
 env = UnityEnvironment(ENVIRONMENT)
@@ -52,7 +53,7 @@ if os.path.exists(path):
    qnet.load_state_dict(torch.load(path))
 
 # initialize agent's experience replay memory
-erm = ExperienceReplayMemory(REPLAY_MEMORY)
+erm = ExperienceReplayMemory(REPLAY_MEMORY) if TRAIN else None
 
 # training progress logger
 writer = SummaryWriter() if COLLECT_DATA else None
@@ -70,23 +71,26 @@ for epoch in tqdm.tqdm(range(EPOCHS), "Epochs"):
             action = random.choice(range(ACTION_SPACE_SIZE)) if random.random() < EXPLORATION else torch.argmax(predicted_qs).item()
             # execute chosen action
             new_braininfo = env.step(action)[BRAIN_NAME]
-            # add experience to memory
-            new_observation = torch.from_numpy(new_braininfo.vector_observations[0]).float()
-            reward = new_braininfo.rewards[0]
-            erm.add((observation, action, reward, new_observation))
-            # sample minibatch of memories for parameter update
-            minibatch = erm.sample(MINIBATCH)
-            loss = utils.minibatch_loss(minibatch, qnet, DISCOUNT)
-            loss.backward()
-            optimizer.step()
-            optimizer.zero_grad()
-            # update training metrics
-            episode_reward += reward
-            episode_length += 1
+            if TRAIN:
+                # add experience to memory
+                new_observation = torch.from_numpy(new_braininfo.vector_observations[0]).float()
+                reward = new_braininfo.rewards[0]
+                erm.add((observation, action, reward, new_observation))
+                # sample minibatch of memories for parameter update
+                minibatch = erm.sample(MINIBATCH)
+                loss = utils.minibatch_loss(minibatch, qnet, DISCOUNT)
+                loss.backward()
+                optimizer.step()
+                optimizer.zero_grad()
+            if COLLECT_DATA:
+                # update training metrics
+                episode_reward += reward
+                episode_length += 1
             # advance to next state
             braininfo = new_braininfo
-        episode_rewards.append(episode_reward)
-        episode_lengths.append(episode_length)
+        if COLLECT_DATA:
+            episode_rewards.append(episode_reward)
+            episode_lengths.append(episode_length)
     # log training metrics after epoch finishes
     if COLLECT_DATA:
         writer.add_scalar("Average_Reward_per_Episode", statistics.mean(episode_rewards), epoch)
