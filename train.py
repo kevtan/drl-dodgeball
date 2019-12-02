@@ -13,27 +13,30 @@ from experience_replay import ExperienceReplayMemory
 from networks import *
 
 # training configuration
-ENVIRONMENT = "environments/Basic.app"
+ENVIRONMENT = "environments/Lesson3.app"
 EPOCHS = 100
 EPISODES = 5
-DISCOUNT_RATE = 0.9
-EXPLORATION = 0.4
+DISCOUNT_RATE = 0.95
+EXPLORATION_RATE = 0.3
+EXPLORATION_RATE_DECAY = 0.999
 RANDOM_STATES = 100
+TARGET_NETWORK_UPDATE_INTERVAL = 100
 CHECKPOINT_EPOCHS = 5
 REPLAY_MEMORY = 100
 MINIBATCH_SIZE = 10
 COLLECT_DATA = True
 TRAIN = True
+NETWORK = Network3
 
 # initialize environment simulation
 env = UnityEnvironment(ENVIRONMENT)
 env.reset()
 
 # extract environment information
-BRAIN_NAME = env.external_brain_names[0]
+BRAIN_NAME = env.external_brain_names[0]        # TODO: add support for >1 brain
 brain_parameters = env.external_brains[BRAIN_NAME]
 STATE_SPACE_SIZE = brain_parameters.vector_observation_space_size * brain_parameters.num_stacked_vector_observations
-ACTION_SPACE_SIZE = brain_parameters.vector_action_space_size[0]
+ACTION_SPACE_SIZE = brain_parameters.vector_action_space_size[0] # TODO: add support for >1 action space dimension
 
 # sample some random states for tracking training progress
 # inspired by https://www.cs.toronto.edu/~vmnih/docs/dqn.pdf
@@ -44,14 +47,16 @@ for _ in range(RANDOM_STATES):
     state = torch.from_numpy(braininfo.vector_observations[0]).float()
     random_states.append(state)
 
-# setup network and optimizer
-qnet = Network3(STATE_SPACE_SIZE, ACTION_SPACE_SIZE)
+# initialize policy/target network and optimizer
+qnet = NETWORK(STATE_SPACE_SIZE, ACTION_SPACE_SIZE)
 optimizer = torch.optim.SGD(qnet.parameters(), 0.005, 0.9)
-identifier = hashlib.md5(f"{ENVIRONMENT}{DISCOUNT_RATE}{str(qnet)}{str(optimizer)}".encode("utf-8")).hexdigest()
+identifier = hashlib.md5(f"{ENVIRONMENT}{DISCOUNT_RATE}{REPLAY_MEMORY}{MINIBATCH_SIZE}{str(qnet)}{str(optimizer)}".encode("utf-8")).hexdigest()
 path = f"models/{identifier}.pt"
 if os.path.exists(path):
     print("Policy network parameters loaded from previous training session.")
     qnet.load_state_dict(torch.load(path))
+tnet = NETWORK(STATE_SPACE_SIZE, ACTION_SPACE_SIZE)
+tnet.load_state_dict(qnet.state_dict())
 
 # initialize agent's experience replay memory
 erm = ExperienceReplayMemory(REPLAY_MEMORY)
@@ -66,30 +71,34 @@ for epoch in tqdm.tqdm(range(EPOCHS), "Epochs"):
         braininfo = env.reset()[BRAIN_NAME]
         episode_reward, episode_length = 0, 0
         while not (braininfo.local_done[0] or braininfo.max_reached[0]):
-            # choose and execute action
-            action = utils.decide_action(qnet, braininfo, TRAIN, EXPLORATION, ACTION_SPACE_SIZE)
+            # select action
+            action = utils.decide_action(qnet, braininfo, TRAIN, EXPLORATION_RATE, ACTION_SPACE_SIZE)
+            # execute action
             new_braininfo = env.step(action)[BRAIN_NAME]
+            # add experience to memory
+            observation = torch.from_numpy(braininfo.vector_observations[0]).float()
+            new_observation = torch.from_numpy(new_braininfo.vector_observations[0]).float()
+            reward = new_braininfo.rewards[0]
+            erm.add((observation, action, reward, new_observation))
             if TRAIN:
-                # add experience to memory
-                observation = torch.from_numpy(braininfo.vector_observations[0]).float()
-                new_observation = torch.from_numpy(new_braininfo.vector_observations[0]).float()
-                reward = new_braininfo.rewards[0]
-                erm.add((observation, action, reward, new_observation))
                 # sample minibatch of memories for parameter update
                 minibatch = erm.sample(MINIBATCH_SIZE)
-                loss = utils.minibatch_loss(minibatch, qnet, DISCOUNT_RATE)
+                optimizer.zero_grad()
+                loss = utils.minibatch_loss(minibatch, qnet, tnet, DISCOUNT_RATE)
                 loss.backward()
                 optimizer.step()
-                optimizer.zero_grad()
             # update training metrics
             episode_reward += reward
             episode_length += 1
             # advance to next state
             braininfo = new_braininfo
-        if COLLECT_DATA:
-            episode_rewards.append(episode_reward)
-            episode_lengths.append(episode_length)
-    # log training metrics after epoch finishes
+        episode_rewards.append(episode_reward)
+        episode_lengths.append(episode_length)
+    # update target network parameters
+    tnet.load_state_dict(qnet.state_dict())
+    # exploration rate decay
+    EXPLORATION_RATE *= EXPLORATION_RATE_DECAY
+    # log training metrics
     if COLLECT_DATA:
         writer.add_scalar("Average_Reward_per_Episode", statistics.mean(episode_rewards), epoch)
         writer.add_scalar("Average_Length_per_Episode", statistics.mean(episode_lengths), epoch)
