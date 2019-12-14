@@ -40,6 +40,12 @@ DRL (Deep Reinforcement Learning) has led to the creation of agents that exhibit
 **QLearningAgentAndy.py**
 - Implementation of generic Q learning on basic example environments from Unity
 
+**\runs**
+- TensorBoard based results of training runs
+
+**\environments**
+- Built Unity environments
+
 
 ## Future Work
 - Accomodate continuous action spaces
