@@ -71,7 +71,6 @@ for epoch in tqdm.tqdm(range(EPOCHS), "Epochs"):
         while True:
             observation, reward = utils.unpack_braininfo(braininfo)
             action, q_values = decide_action(qnet, observation)
-            breakpoint()
             new_braininfo = env.step(action)[BRAIN_NAME]
             if TRAIN:
                 new_observation, new_reward = utils.unpack_braininfo(new_braininfo)
@@ -90,9 +89,9 @@ for epoch in tqdm.tqdm(range(EPOCHS), "Epochs"):
             braininfo = new_braininfo
         episode_rewards.append(episode_reward)
         episode_lengths.append(episode_length)
-    # temp = qnet.state_dict()
-    # qnet.load_state_dict(tnet.state_dict())
-    # tnet.load_state_dict(temp)
+    temp = qnet.state_dict()
+    qnet.load_state_dict(tnet.state_dict())
+    tnet.load_state_dict(temp)
     EXPLORATION_RATE *= EXPLORATION_RATE_DECAY
     if COLLECT_DATA:
         with torch.no_grad():

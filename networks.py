@@ -61,12 +61,10 @@ class Network3(nn.Module):
     def __init__(self, state_space_size, action_space_size):
         super(Network3, self).__init__()
         self.fc1 = nn.Linear(state_space_size, 100)
-        self.fc2 = nn.Linear(100, 75)
-        self.fc3 = nn.Linear(75, 50)
+        self.fc2 = nn.Linear(100, 50)
         self.out = nn.Linear(50, action_space_size)
     
     def forward(self, data):
         data = F.relu(self.fc1(data))
         data = F.relu(self.fc2(data))
-        data = F.relu(self.fc3(data))
         return self.out(data)
