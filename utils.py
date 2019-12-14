@@ -4,6 +4,25 @@ import statistics
 import torch
 import torch.nn.functional as F
 
+def sample_states(env, brain_name, action_space_size, n_states):
+    """
+    Sample some random states for tracking training progress.
+    Inspiration: https://www.cs.toronto.edu/~vmnih/docs/dqn.pdf
+    """
+    random_states = []
+    for _ in range(n_states):
+        action = random.choice(range(action_space_size))
+        braininfo = env.step(action)[brain_name]
+        state = torch.from_numpy(braininfo.vector_observations[0]).float()
+        random_states.append(state)
+    return random_states
+
+
+def unpack_braininfo(braininfo):
+    """Braininfo -> Observation, Reward"""
+    observation = torch.from_numpy(braininfo.vector_observations[0]).float()
+    reward = braininfo.rewards[0]
+    return observation, reward
 
 def average_state_value(qnet, states):
     """
@@ -19,13 +38,15 @@ def minibatch_loss(minibatch, qnet, tnet, discount):
     losses = [(prediction - target) ** 2 for prediction, target in zip(predictions, targets)]
     return sum(losses) / len(losses)
 
-def decide_action(qnet, braininfo, train, exploration, action_space_size):
+def decide_action(qnet, observation, train, exploration, action_space_size):
     """
-    Choose an action to take given a policy network and BrainInfo object.
+    Choose an action to take given a policy network and observation.
     If |train| is True, then 100% exploitation, else epsilon-greedy
+
+    Returns a tuple action, best_action in order to save computation effort
     """
-    observation = torch.from_numpy(braininfo.vector_observations[0]).float()
-    best_action = torch.argmax(qnet(observation)).item()
+    q_values = qnet(observation)
+    best_action = torch.argmax(q_values).item()
     if train and random.random() < exploration:
-        return random.choice(range(action_space_size))
-    return best_action
+        return random.choice(range(action_space_size)), q_values
+    return best_action, q_values
