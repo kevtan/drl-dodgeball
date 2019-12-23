@@ -69,7 +69,6 @@ decide_action = functools.partial(
 
 for epoch in tqdm.tqdm(range(EPOCHS), "Epochs"):
     episode_rewards, episode_lengths = [], []
-    breakpoint()
     for _ in range(EPISODES):
         braininfo = env.reset()[BRAIN_NAME]
         episode_reward, episode_length = 0, 0

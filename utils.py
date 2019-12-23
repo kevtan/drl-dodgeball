@@ -19,7 +19,13 @@ def sample_states(env, brain_name, action_space_size, n_states):
 
 
 def unpack_braininfo(braininfo):
-    """Braininfo -> Observation, Reward"""
+    """
+    Unpacks a BrainInfo object into its vector observation and scalar reward.
+
+    Returns:
+    - observation (torch.FloatTensor)
+    - reward (float)
+    """
     observation = torch.from_numpy(braininfo.vector_observations[0]).float()
     reward = braininfo.rewards[0]
     return observation, reward
